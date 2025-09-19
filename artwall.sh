@@ -1,44 +1,42 @@
 #!/bin/bash
 
-wallpapers=$HOME/Downloads/wallpapers/
-mkdir -p wallpapers
+BLUR=5
+TOP_SKIP=0
+WALLPAPERS=$HOME/Downloads/wallpapers/
+mkdir -p $WALLPAPERS
 
-used_name=".used"
-used_path=$wallpapers$used_name
-touch $used_path
-
-current=$(gsettings get org.gnome.desktop.background picture-uri)
-current=${current%\'}
-current=${current#\'file://}
+USED_NAME=".used"
+USED_PATH=$WALLPAPERS$USED_NAME
+touch $USED_PATH
 
 get_all_wallpapers() {
-  find $wallpapers -type f -not -name "$used_name" | sort
+  find $WALLPAPERS -type f -not -name "$USED_NAME" | sort
 }
 readarray -t files < <(comm -23 \
   <(get_all_wallpapers) \
-  <(cat "$used_path" | sort))
+  <(cat "$USED_PATH" | sort))
 if [ ${#files[@]} -eq 0 ]; then
   # TODO: run artwall-dl to download new files
-  > $used_path
+  > $USED_PATH
   readarray -t files < <(get_all_wallpapers)
-  next_idx=0
-else
-  for i in "${!files[@]}"; do
-    if [ "${files[$i]}" = "$current" ]; then
-      next_idx=$(( $i + 1 ))
-      break
-    fi
-  done
 fi 
 
-next_file=${files[$next_idx]}
+next_file=${files[0]}
 if [ ! -f "$next_file" ]; then
   echo "File '$next_file' not found."
   exit 1
 fi
 
-echo "Next wallpaper is '$next_file'"
-gsettings set org.gnome.desktop.background picture-uri "file://$next_file"
-gsettings set org.gnome.desktop.background picture-uri-dark "file://$next_file"
-echo $next_file >> $used_path
+echo "Next wallpaper is '$(basename "$next_file")'"
+screen_res=$(xrandr | grep '*' | head -1 | awk '{print $1}' | sed 's/\(.*\)x\(.*\)/\1:\2/')
+screen_w=${screen_res%:*}
+screen_h=${screen_res#*:}
+picture_res="$screen_w:$(($screen_h - $TOP_SKIP))"
+
+ffmpeg -i "$next_file" -loglevel error \
+  -filter_complex "[0:v]scale=$screen_res,gblur=sigma=$BLUR:steps=2[bg];
+                   [0:v]scale=$picture_res:force_original_aspect_ratio=decrease[fg];
+                   [bg][fg]overlay=(W-w)/2:H-h" \
+  -c:v png -f image2 -update 1 -y "$HOME/.config/background" 
+echo $next_file >> "$USED_PATH"
 
