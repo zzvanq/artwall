@@ -2,7 +2,7 @@
 
 BLUR=5
 TOP_SKIP=0
-WALLPAPERS=$HOME/Downloads/wallpapers/
+WALLPAPERS="${XDG_DATA_HOME:-$HOME/.local/share}/artwall/"
 mkdir -p $WALLPAPERS
 
 USED_NAME=".used"
@@ -21,6 +21,7 @@ if [ ${#files[@]} -eq 0 ]; then
   readarray -t files < <(get_all_wallpapers)
 fi 
 
+# TODO: this check will not make sense after artwall-dl addition
 next_file=${files[0]}
 if [ ! -f "$next_file" ]; then
   echo "File '$next_file' not found."
@@ -32,7 +33,7 @@ screen_res=$(xrandr | grep '*' | head -1 | awk '{print $1}' | sed 's/\(.*\)x\(.*
 screen_w=${screen_res%:*}
 screen_h=${screen_res#*:}
 picture_res="$screen_w:$(($screen_h - $TOP_SKIP))"
-
+# TODO: Read metadata from file attrs, if exists - apply
 ffmpeg -i "$next_file" -loglevel error \
   -filter_complex "[0:v]scale=$screen_res,gblur=sigma=$BLUR:steps=2[bg];
                    [0:v]scale=$picture_res:force_original_aspect_ratio=decrease[fg];
