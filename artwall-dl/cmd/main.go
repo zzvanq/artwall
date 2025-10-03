@@ -6,21 +6,24 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/zzvanq/artwall-dl/internal/downloader/nga"
 )
-
-type downloader interface {
-	download(int, string) int
-}
-
-// keys are single bits. 1 = nga, 2 = wallhaven, 4 = ...
-var downloadersMap = map[int]downloader{
-	1: ngaDl{},
-	// 2: wallhavenDl{},
-}
 
 var destination = flag.String("d", "", "Destination directory")
 var downloaderBits = flag.Int("s", 1, "Sources bitmap")
 var amount = flag.Int("n", 1, "Amount to download per source")
+
+type downloader interface {
+	Download(int) int
+}
+
+// keys are single bits. 1 = nga, 2 = wallhaven, 4 = ...
+var downloadersMap = map[int]func(source) downloader{
+	1: func(src source) downloader { return nga.NewNgaDl(src.ListUrl, *destination) },
+	// 2: func(src source) downloader { return wallhavenDl{src.ListUrl, *destination} },
+	// 4: func(src source) downloader { return imgurDl{src.ListUrl, *destination} },
+}
 
 func main() {
 	validateFlags()
@@ -34,8 +37,8 @@ func main() {
 
 	// TODO: parallelize
 	downloaded := 0
-	for _, downloader := range downloaders {
-		downloaded += downloader.download(*amount, *destination)
+	for _, d := range downloaders {
+		downloaded += d.Download(*amount)
 	}
 
 	fmt.Println("downloaded ", downloaded, " images")
@@ -43,13 +46,12 @@ func main() {
 
 func getDownloaders(sources []source, downloaderBits int) []downloader {
 	var downloaders = make([]downloader, len(sources))
-	for _, current := range sources {
-		if ((downloaderBits) & current.Id) != 0 {
-			downloader := downloadersMap[current.Id]
-			if current.ListUrl == "" {
-				log.Fatal("Source ", current.Id, " is not properly configured")
+	for _, srci := range sources {
+		if ((downloaderBits) & srci.Id) != 0 {
+			if srci.ListUrl == "" {
+				log.Fatal("Source ", srci.Id, " is not properly configured")
 			}
-			downloaders = append(downloaders, downloader)
+			downloaders = append(downloaders, downloadersMap[srci.Id](srci))
 		}
 	}
 	return downloaders

@@ -33,7 +33,7 @@ screen_res=$(xrandr | grep '*' | head -1 | awk '{print $1}' | sed 's/\(.*\)x\(.*
 screen_w=${screen_res%:*}
 screen_h=${screen_res#*:}
 picture_res="$screen_w:$(($screen_h - $TOP_SKIP))"
-# TODO: Read metadata from file attrs, if exists - apply
+# TODO: Read metadata from file attrs using tinymedia, if exists - apply
 ffmpeg -i "$next_file" -loglevel error \
   -filter_complex "[0:v]scale=$screen_res,gblur=sigma=$BLUR:steps=2[bg];
                    [0:v]scale=$picture_res:force_original_aspect_ratio=decrease[fg];

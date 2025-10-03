@@ -1,5 +1,5 @@
-module github.com/zzvanq/artwall
+module github.com/zzvanq/artwall-dl
 
 go 1.24.7
 
-require golang.org/x/net v0.44.0 // indirect
+require github.com/zzvanq/tinymedia v0.0.0-20251001200725-8ab4cec95572

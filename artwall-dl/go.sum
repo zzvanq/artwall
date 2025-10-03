@@ -1,2 +1,2 @@
-golang.org/x/net v0.44.0 h1:evd8IRDyfNBMBTTY5XRF1vaZlD+EmWx6x8PkhR04H/I=
-golang.org/x/net v0.44.0/go.mod h1:ECOoLqd5U3Lhyeyo/QDCEVQ4sNgYsqvCZ722XogGieY=
+github.com/zzvanq/tinymedia v0.0.0-20251001200725-8ab4cec95572 h1:cOFkBrwvhPS/B62wvBEDAup2ajX2mJafClL/FRpWejs=
+github.com/zzvanq/tinymedia v0.0.0-20251001200725-8ab4cec95572/go.mod h1:BJgX+nh6ulurs/03g5/ABXJZtWvMKmwLKqP5u8DRF3o=
