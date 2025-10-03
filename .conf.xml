@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sources>
+  <source id="1">
+    <listUrl><![CDATA[https://www.nga.gov/search/json?begin_year=522&end_year=1934&f[]=awtype:107231&f[]=movement:82506&f[]=movement:29206&f[]=movement:83431&f[]=movement:33831&f[]=movement:46221&f[]=movement:58341&f[]=movement:3811&f[]=movement:53841&f[]=movement:91366&f[]=movement:76071]]></listUrl>
+  </source>
+  <!-- <source id="2"> -->
+  <!--   <listUrl></listUrl> -->
+  <!-- </source> -->
+</sources>

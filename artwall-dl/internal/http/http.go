@@ -25,7 +25,7 @@ func GetBody(ctx context.Context, url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return data, err
+	return data, nil
 }
 
 func getBodyWithRetries(ctx context.Context, url string, retries int, backoff time.Duration) (io.ReadCloser, error) {
@@ -65,7 +65,6 @@ func fetchBody(ctx context.Context, url string) (io.ReadCloser, int, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		return nil, resp.StatusCode, fmt.Errorf("status code %d", resp.StatusCode)

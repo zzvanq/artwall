@@ -1,65 +1,49 @@
 package main
 
 import (
-	"encoding/xml"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"sync"
+	"sync/atomic"
 
-	"github.com/zzvanq/artwall-dl/internal/downloader/nga"
+	"github.com/zzvanq/artwall-dl/internal/dl"
 )
 
+const configFile = ".conf.xml"
+
 var destination = flag.String("d", "", "Destination directory")
-var downloaderBits = flag.Int("s", 1, "Sources bitmap")
+var downloaderBits = flag.Int("s", 0, "Sources bitmap")
 var amount = flag.Int("n", 1, "Amount to download per source")
 
-type downloader interface {
-	Download(int) int
-}
-
-// keys are single bits. 1 = nga, 2 = wallhaven, 4 = ...
-var downloadersMap = map[int]func(source) downloader{
-	1: func(src source) downloader { return nga.NewNgaDl(src.ListUrl, *destination) },
-	// 2: func(src source) downloader { return wallhavenDl{src.ListUrl, *destination} },
-	// 4: func(src source) downloader { return imgurDl{src.ListUrl, *destination} },
-}
-
 func main() {
+	flag.Parse()
 	validateFlags()
 
-	conf := parseConfig("conf.xml")
+	conf := dl.ParseConfig(configFile)
 
-	downloaders := getDownloaders(conf.Sources, *downloaderBits)
+	downloaders := dl.GetDownloaders(conf.Sources, *downloaderBits, *destination)
 	if len(downloaders) == 0 {
 		log.Fatalln("no downloaders found")
 	}
 
-	// TODO: parallelize
-	downloaded := 0
+	var downloaded atomic.Int64
+	var wg sync.WaitGroup
+	wg.Add(len(downloaders))
 	for _, d := range downloaders {
-		downloaded += d.Download(*amount)
+		go func() {
+			defer wg.Done()
+			downloaded.Add(int64(d.Download(*amount)))
+		}()
 	}
-
-	fmt.Println("downloaded ", downloaded, " images")
-}
-
-func getDownloaders(sources []source, downloaderBits int) []downloader {
-	var downloaders = make([]downloader, len(sources))
-	for _, srci := range sources {
-		if ((downloaderBits) & srci.Id) != 0 {
-			if srci.ListUrl == "" {
-				log.Fatal("Source ", srci.Id, " is not properly configured")
-			}
-			downloaders = append(downloaders, downloadersMap[srci.Id](srci))
-		}
-	}
-	return downloaders
+	wg.Wait()
+	fmt.Printf("downloaded %d images from %d sources\n", downloaded.Load(), len(downloaders))
 }
 
 func validateFlags() {
 	if *destination == "" {
-		log.Fatalln("destination must be set")
+		log.Fatalln("-d must be set")
 	}
 
 	if _, err := os.Stat(*destination); err != nil {
@@ -67,33 +51,10 @@ func validateFlags() {
 	}
 
 	if *downloaderBits <= 0 {
-		log.Fatalln("sources must be greater than 0")
+		log.Fatalln("-s value is not valid")
 	}
 
 	if *amount <= 0 {
-		log.Fatalln("amount must be greater than 0")
+		log.Fatalln("-n must be greater than 0")
 	}
-}
-
-type config struct {
-	Sources []source `xml:"source"`
-}
-
-type source struct {
-	Id      int    `xml:"id,attr"`
-	ListUrl string `xml:"listUrl"`
-}
-
-func parseConfig(configFile string) config {
-	data, err := os.ReadFile(configFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var conf config
-	err = xml.Unmarshal(data, &conf)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return conf
 }
