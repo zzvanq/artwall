@@ -12,6 +12,7 @@ import (
 const baseUrl = "https://www.nga.gov"
 
 const (
+	DlKey             = "nga"
 	itemWorkersAmount = 10
 	dlTimeout         = 45 * time.Second
 )

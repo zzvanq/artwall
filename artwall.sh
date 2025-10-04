@@ -13,8 +13,13 @@ USED_NAME=".used"
 USED_PATH=$WALLPAPERS$USED_NAME
 touch $USED_PATH
 
+DOWNLOADER_URL="https://www.nga.gov/search/json?begin_year=522&end_year=1934&f[]=awtype:107231&f[]=movement:82506&f[]=movement:29206&f[]=movement:83431&f[]=movement:33831&f[]=movement:46221&f[]=movement:58341&f[]=movement:3811&f[]=movement:53841&f[]=movement:91366&f[]=movement:76071&page="
+DOWNLOAD_AMOUNT=12
+CURRENT_NAME=".current"
+CURRENT_PATH=$WALLPAPERS$CURRENT_NAME
+
 get_all_wallpapers() {
-  find $WALLPAPERS -type f -not -name "$USED_NAME" | sort
+  find $WALLPAPERS -type f -not -name "$CURRENT_NAME" -not -name "$USED_NAME" | sort
 }
 
 readarray -t files < <(comm -23 \
@@ -22,7 +27,9 @@ readarray -t files < <(comm -23 \
   <(sort "$USED_PATH"))
 
 if [ ${#files[@]} -eq 0 ]; then
-  artwall-dl -d $MANAGED -n 10 -s 1
+  page=$(cat $CURRENT_PATH 2>/dev/null || echo 1)
+  artwall-dl -d $MANAGED -n $DOWNLOAD_AMOUNT -l $DOWNLOADER_URL$page
+  echo $page > $CURRENT_PATH
   > $USED_PATH
   readarray -t files < <(get_all_wallpapers)
 fi 

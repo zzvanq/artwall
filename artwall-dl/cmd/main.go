@@ -5,40 +5,26 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
-	"sync/atomic"
 
 	"github.com/zzvanq/artwall-dl/internal/dl"
+	"github.com/zzvanq/artwall-dl/internal/dl/nga"
 )
 
-const configFile = ".conf.xml"
-
 var destination = flag.String("d", "", "Destination directory")
-var downloaderBits = flag.Int("s", 0, "Sources bitmap")
-var amount = flag.Int("n", 1, "Amount to download per source")
+var listUrl = flag.String("l", "", "Url to the list of images")
+var downloader = flag.String("s", nga.DlKey, "Source")
+var amount = flag.Int("n", 1, "Amount to download")
 
 func main() {
 	flag.Parse()
 	validateFlags()
 
-	conf := dl.ParseConfig(configFile)
-
-	downloaders := dl.GetDownloaders(conf.Sources, *downloaderBits, *destination)
-	if len(downloaders) == 0 {
-		log.Fatalln("no downloaders found")
+	dl, err := dl.NewDownloader(*listUrl, *downloader, *destination)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	var downloaded atomic.Int64
-	var wg sync.WaitGroup
-	wg.Add(len(downloaders))
-	for _, d := range downloaders {
-		go func() {
-			defer wg.Done()
-			downloaded.Add(int64(d.Download(*amount)))
-		}()
-	}
-	wg.Wait()
-	fmt.Printf("downloaded %d images from %d sources\n", downloaded.Load(), len(downloaders))
+	fmt.Printf("downloaded %d images\n", dl.Download(*amount))
 }
 
 func validateFlags() {
@@ -50,8 +36,8 @@ func validateFlags() {
 		log.Fatalln(err)
 	}
 
-	if *downloaderBits <= 0 {
-		log.Fatalln("-s value is not valid")
+	if *listUrl == "" {
+		log.Fatalln("-l must be set")
 	}
 
 	if *amount <= 0 {

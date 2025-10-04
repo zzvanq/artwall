@@ -1,2 +1,2 @@
 build:
-	go build -C ./artwall-dl -o ../artwall-dl ./cmd/main.go
+	go build -C ./artwall-dl -o ../downloader ./cmd/main.go
