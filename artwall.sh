@@ -1,9 +1,13 @@
 #!/bin/bash
 
-BLUR=5
-TOP_SKIP=0
+set -euo pipefail
+
+BLUR=15
+TOP_SKIP=31
 WALLPAPERS="${XDG_DATA_HOME:-$HOME/.local/share}/artwall/"
 mkdir -p $WALLPAPERS
+MANAGED="$WALLPAPERS/managed/"
+mkdir -p $MANAGED
 
 USED_NAME=".used"
 USED_PATH=$WALLPAPERS$USED_NAME
@@ -12,16 +16,17 @@ touch $USED_PATH
 get_all_wallpapers() {
   find $WALLPAPERS -type f -not -name "$USED_NAME" | sort
 }
+
 readarray -t files < <(comm -23 \
   <(get_all_wallpapers) \
-  <(cat "$USED_PATH" | sort))
+  <(sort "$USED_PATH"))
+
 if [ ${#files[@]} -eq 0 ]; then
-  # TODO: run artwall-dl to download new files
+  artwall-dl -d $MANAGED -n 10 -s 1
   > $USED_PATH
   readarray -t files < <(get_all_wallpapers)
 fi 
 
-# TODO: this check will not make sense after artwall-dl addition
 next_file=${files[0]}
 if [ ! -f "$next_file" ]; then
   echo "File '$next_file' not found."
@@ -29,15 +34,41 @@ if [ ! -f "$next_file" ]; then
 fi
 
 echo "Next wallpaper is '$(basename "$next_file")'"
-screen_res=$(xrandr | grep '*' | head -1 | awk '{print $1}' | sed 's/\(.*\)x\(.*\)/\1:\2/')
+
+screen_res=$(xrandr | awk '/\*/{print $1;exit}' | sed 's/x/:/')
 screen_w=${screen_res%:*}
 screen_h=${screen_res#*:}
 picture_res="$screen_w:$(($screen_h - $TOP_SKIP))"
-# TODO: Read metadata from file attrs using tinymedia, if exists - apply
+
+meta=""
+author=""
+title=""
+year=""
+description=""
+if [ "$(file -b --mime-type "$next_file")" == "image/jpeg" ]; then
+  meta=$(tinymedia -i "$next_file" -m "author,title,year,description" -mv "tinymetagzip"  )
+  author=$(sed -n 's/"author"="\([^"]*\)"/\1/p' <<< "$meta")
+  title=$(sed -n 's/"title"="\([^"]*\)"/\1/p' <<< "$meta")
+  year=$(sed -n 's/"year"="\([^"]*\)"/\1/p' <<< "$meta")
+  description=$(sed -n 's/"description"="\([^"]*\)"/\1/p' <<< "$meta" | sed 's/\\n/\n\n/g' | sed "s/:/꞉/g" | sed "s/'/’/g"|  fmt -w 70 )
+fi
+
+vf=""
+box_w=0
+if [[ -n "$description" ]]; then
+  box_w=710
+  box_m="$screen_w-$box_w+$(($box_w/2))-tw/2"
+  title_offset=150
+  vf="drawtext=text='$title':x=$box_m:y=$TOP_SKIP+$title_offset:fontsize=34:fontcolor=white:borderw=1:bordercolor=black,\
+      drawtext=text='$author. $year':x=$box_m:y=$TOP_SKIP+$title_offset+40:fontsize=24:fontcolor=gray:borderw=1:bordercolor=black,\
+      drawtext=text='$description':x=$box_m:y=$TOP_SKIP+(H-$TOP_SKIP-th)/2:fontsize=20:fontcolor=white:line_spacing=3:text_align=C+C:borderw=2:bordercolor=black"
+fi
+
 ffmpeg -i "$next_file" -loglevel error \
   -filter_complex "[0:v]scale=$screen_res,gblur=sigma=$BLUR:steps=2[bg];
                    [0:v]scale=$picture_res:force_original_aspect_ratio=decrease[fg];
-                   [bg][fg]overlay=(W-w)/2:H-h" \
+                   [bg][fg]overlay=(W-$box_w-w)/2:$TOP_SKIP,${vf}" \
   -c:v png -f image2 -update 1 -y "$HOME/.config/background" 
+
 echo $next_file >> "$USED_PATH"
 
